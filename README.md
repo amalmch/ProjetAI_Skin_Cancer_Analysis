@@ -10,8 +10,6 @@ Here is a full high-fidelity walkthrough of the **SkinGuard AI** platform in act
 
 https://github.com/amalmch/ProjetAI_Skin_Cancer_Analysis/raw/main/projet_AI.mp4
 
-Alternatively, you can access the raw video file directly:
-[![SkinGuard AI Platform Demo](https://img.shields.io/badge/Demo_Video-Click_to_Watch-6366f1?style=for-the-badge&logo=youtube)](https://github.com/amalmch/ProjetAI_Skin_Cancer_Analysis/raw/main/projet_AI.mp4)
 
 ---
 
