@@ -5,9 +5,13 @@ SkinGuard AI is a premium, high-fidelity medical diagnostic assistant designed t
 ---
 
 ## 📺 Demonstration Video
-Add your clinical platform walk-through video here:
 
-[![SkinGuard AI Platform Demo](https://img.shields.io/badge/Demo_Video-Click_to_Watch-6366f1?style=for-the-badge&logo=youtube)](YOUR_DEMO_VIDEO_LINK_HERE)
+Here is a full high-fidelity walkthrough of the **SkinGuard AI** platform in action, showcasing the dual-theme dashboard, deep-learning analysis inference, dynamic charts, and the interactive patient records management drawer:
+
+https://github.com/amalmch/ProjetAI_Skin_Cancer_Analysis/raw/main/projet_AI.mp4
+
+Alternatively, you can access the raw video file directly:
+[![SkinGuard AI Platform Demo](https://img.shields.io/badge/Demo_Video-Click_to_Watch-6366f1?style=for-the-badge&logo=youtube)](https://github.com/amalmch/ProjetAI_Skin_Cancer_Analysis/raw/main/projet_AI.mp4)
 
 ---
 
