@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Rapport de Diagnostic - SkinGuard AI{% endblock %}
+{% block page_title %}Rapport Clinique{% endblock %}
+
+{% block content %}
+<div class="result-card glass-panel animate-up">
+    <!-- Header Block featuring outcome badge -->
+    <div class="result-header-block">
+        <div class="result-header-info">
+            <h2>Rapport de Diagnostic Clinique</h2>
+            <p>Identifiant Diagnostic: SG-{{ range(1000, 9999) | random }} • SkinGuard AI Engine</p>
+        </div>
+        
+        <div class="result-badge {% if result == 'Malignant' %}malignant{% elif result == 'Suspicious' %}suspicious{% else %}benign{% endif %}">
+            {{ 'MÉLANOME SUSPECTÉ (MALIN)' if result == 'Malignant' else ('RISQUE MODÉRÉ (SUSPECT)' if result == 'Suspicious' else 'LÉSION BÉNIGNE') }}
+        </div>
+    </div>
+
+    <!-- Main Diagnostic Split Area -->
+    <div class="result-body">
+        
+        <!-- Left Side: Scan Target & Patient Metadata Card -->
+        <div class="result-scan-container">
+            <div class="result-img-wrapper">
+                <img src="/{{ img if not img.startswith('/') else img[1:] }}" alt="Analyzed Skin Lesion">
+            </div>
+            
+            <div class="result-patient-meta">
+                <div class="meta-row">
+                    <span class="label">Patient:</span>
+                    <span class="val">{{ name }}</span>
+                </div>
+                <div class="meta-row">
+                    <span class="label">Âge:</span>
+                    <span class="val">{{ age }} ans</span>
+                </div>
+                <div class="meta-row">
+                    <span class="label">Modèle IA:</span>
+                    <span class="val" style="color: var(--secondary);">VGG-16 Deep Learning</span>
+                </div>
+                <div class="meta-row" style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 8px; margin-top: 4px;">
+                    <span class="label">Statut Analytique:</span>
+                    <span class="val" style="color: var(--benign);">Analyse Validée ✓</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Circular Gauge & Dynamic Medical Recommendation -->
+        <div class="result-analysis-panel">
+            
+            <!-- Holographic Confidence Circular Progress Ring -->
+            <div class="confidence-gauge">
+                <svg class="svg-ring" width="160" height="160" viewBox="0 0 160 160">
+                    <circle class="ring-circle-bg" cx="80" cy="80" r="70" />
+                    <!-- stroke-dasharray = 2 * PI * R = 2 * 3.14159 * 70 = 439.82 -->
+                    <circle id="progressCircle" class="ring-circle-progress {% if result == 'Malignant' %}malignant{% elif result == 'Suspicious' %}suspicious{% else %}benign{% endif %}" 
+                            cx="80" cy="80" r="70" 
+                            stroke-dasharray="439.82" 
+                            stroke-dashoffset="439.82" />
+                </svg>
+                <div class="confidence-text">
+                    <span class="confidence-val">{{ prob }}%</span>
+                    <span class="confidence-lbl">{% if result == 'Suspicious' %}Risque IA{% else %}Confiance{% endif %}</span>
+                </div>
+            </div>
+
+            <!-- Medical Opinion Recommendations Box -->
+            <div class="recommendations-box {% if result == 'Malignant' %}malignant{% elif result == 'Suspicious' %}suspicious{% else %}benign{% endif %}">
+                {% if result == 'Malignant' %}
+                    <h4>
+                        <!-- Warning Exclamation SVG -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span>Avis Oncologique Critique (Risque Élevé)</span>
+                    </h4>
+                    <p>
+                        Notre algorithme a détecté des caractéristiques structurelles hautement atypiques concordantes avec des lésions cancéreuses (mélanome). <strong>Il est impérativement recommandé de planifier une biopsie ou une consultation d'urgence</strong> avec un dermatologue ou oncologue certifié pour confirmer ce résultat.
+                    </p>
+                {% elif result == 'Suspicious' %}
+                    <h4>
+                        <!-- Warning Alert Circle SVG -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>Avis Clinique de Prudence (Risque Modéré)</span>
+                    </h4>
+                    <p>
+                        La lésion présente des caractéristiques d'atypie structurelles modérées (score de <strong>{{ raw_prob }}%</strong>). Bien que sous le seuil d'urgence absolue de 50%, ce score représente un risque non négligeable. <strong>Une consultation dermatologique de contrôle est vivement conseillée</strong> par précaution.
+                    </p>
+                {% else %}
+                    <h4>
+                        <!-- Friendly Shield Check SVG -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <polyline points="9 11 11 13 15 9"></polyline>
+                        </svg>
+                        <span>Avis Dermatologique Préventif (Risque Faible)</span>
+                    </h4>
+                    <p>
+                        La lésion analysée présente des motifs réguliers et homogènes ne suggérant aucune anomalie maligne significative à ce jour (confiance: {{ prob }}%). <strong>Aucune urgence n'est signalée.</strong> Continuez néanmoins à surveiller régulièrement l'évolution des grains de beauté (règle ABCDE) et effectuez un dépistage annuel.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Lower Actions Banner -->
+    <div class="result-footer">
+        <button onclick="window.print()" class="btn-secondary">
+            <!-- Printer SVG -->
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            <span>Imprimer</span>
+        </button>
+        <a href="/predict" class="btn-secondary">
+            <span>Autre Analyse</span>
+        </a>
+        <a href="/dashboard" class="btn-primary" style="padding: 14px 24px;">
+            <span>Retour Dashboard</span>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const circle = document.getElementById("progressCircle");
+        const confidenceValue = parseFloat("{{ prob }}");
+        
+        // Circumference is 2 * PI * 70 = 439.82
+        const circumference = 439.82;
+        
+        // Calculate offset based on confidence percentage
+        // If prob = 75%, we fill 75% of the ring. Dashoffset = Circumference - (Confidence% * Circumference)
+        const offset = circumference - ((confidenceValue / 100) * circumference);
+        
+        // Animate circular loader progress on load with a slight delay
+        setTimeout(() => {
+            circle.style.strokeDashoffset = offset;
+        }, 300);
+    });
+</script>
+{% endblock %}

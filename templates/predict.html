@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Analyse Scanner - SkinGuard AI{% endblock %}
+{% block page_title %}Diagnostic par IA{% endblock %}
+
+{% block content %}
+<div class="scan-container">
+    <div class="glass-panel" style="padding: 30px; margin-bottom: 30px;">
+        <h2 style="font-size: 1.35rem; margin-bottom: 8px;">Scanner Diagnostique Dermatologique</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Soumettez une photographie haute résolution d'une lésion cutanée suspecte. Notre réseau de neurones convolutifs VGG-16 analysera les motifs structurels, la distribution cellulaire et les contours pour estimer la malignité de la lésion.
+        </p>
+    </div>
+
+    <!-- Scanner Diagnostic Form Workspace -->
+    <form id="diagnoseForm" method="POST" enctype="multipart/form-data">
+        <div class="scan-grid">
+            
+            <!-- Left Side: Interactive Upload Drag Zone -->
+            <div class="glass-panel" style="padding: 20px;">
+                <div id="dropZone" class="upload-zone">
+                    <div class="upload-icon">
+                        <!-- Advanced Microscope Scanner SVG -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                            <polyline points="7.5 19.79 7.5 14.6 12 12 16.5 14.6 16.5 19.79"></polyline>
+                            <polyline points="12 22 12 12"></polyline>
+                            <line x1="12" y1="6.81" x2="12" y2="12"></line>
+                        </svg>
+                    </div>
+                    <div class="upload-text">
+                        <h3>Glissez-déposez le cliché</h3>
+                        <p>ou cliquez pour parcourir les dossiers</p>
+                        <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px;">Format recommandé: JPG, PNG • Max 10Mo</p>
+                    </div>
+                    
+                    <!-- File input hidden behind -->
+                    <input type="file" id="fileInput" name="image" accept="image/*" required style="display: none;">
+                    
+                    <!-- Dynamic Image Preview Container -->
+                    <div id="previewContainer" class="preview-container">
+                        <button type="button" id="removePreview" class="remove-preview-btn">&times;</button>
+                        <img id="imagePreview" class="preview-img" src="#" alt="Image Preview">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Patient Metadata Inputs -->
+            <div class="glass-panel form-card">
+                <h3 style="font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                    Détails du Patient
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="patientName">Nom complet du patient</label>
+                    <input class="form-input" type="text" id="patientName" name="name" placeholder="ex: Jean Dupont" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="patientAge">Âge du patient (ans)</label>
+                    <input class="form-input" type="number" id="patientAge" name="age" min="0" max="130" placeholder="ex: 45" required>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 15px; width: 100%;">
+                    <!-- Scan Bolt SVG -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span>Lancer le Diagnostic IA</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Holographic Scan Sweeper Overlay -->
+<div id="scanOverlay" class="scan-overlay">
+    <div class="scan-box">
+        <img id="overlayScanImage" class="scan-box-image" src="#" alt="Scanning Target">
+        <div class="scan-laser"></div>
+    </div>
+    <div class="scan-status-text">Analyse Dermatologique en cours...</div>
+    <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Classification par le CNN VGG-16</div>
+    <div class="scan-progress-bar">
+        <div class="scan-progress-fill"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const dropZone = document.getElementById("dropZone");
+        const fileInput = document.getElementById("fileInput");
+        const previewContainer = document.getElementById("previewContainer");
+        const imagePreview = document.getElementById("imagePreview");
+        const removePreview = document.getElementById("removePreview");
+        const diagnoseForm = document.getElementById("diagnoseForm");
+        const scanOverlay = document.getElementById("scanOverlay");
+        const overlayScanImage = document.getElementById("overlayScanImage");
+
+        // Click zone triggers file selection
+        dropZone.addEventListener("click", function(e) {
+            if (e.target !== removePreview && !removePreview.contains(e.target)) {
+                fileInput.click();
+            }
+        });
+
+        // Handle Drag & Drop styling
+        ["dragenter", "dragover"].forEach(eventName => {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                dropZone.classList.add("dragover");
+            }, false);
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                dropZone.classList.remove("dragover");
+            }, false);
+        });
+
+        // Drop file handler
+        dropZone.addEventListener("drop", function(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelection(files[0]);
+            }
+        });
+
+        // File browser input handler
+        fileInput.addEventListener("change", function() {
+            if (this.files.length > 0) {
+                handleFileSelection(this.files[0]);
+            }
+        });
+
+        // Preview file helper
+        function handleFileSelection(file) {
+            if (file && file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    overlayScanImage.src = e.target.result;
+                    previewContainer.style.display = "block";
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Remove preview button
+        removePreview.addEventListener("click", function(e) {
+            e.stopPropagation();
+            fileInput.value = "";
+            imagePreview.src = "#";
+            overlayScanImage.src = "#";
+            previewContainer.style.display = "none";
+        });
+
+        // Intercept form submission to play the stunning scanner animation
+        diagnoseForm.addEventListener("submit", function(e) {
+            if (fileInput.files.length > 0) {
+                scanOverlay.style.display = "flex";
+                // Let the native form submit happen (which has the action POST)
+            }
+        });
+    });
+</script>
+{% endblock %}

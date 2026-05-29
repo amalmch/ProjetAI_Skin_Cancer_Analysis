@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Dossiers Patients - SkinGuard AI{% endblock %}
+{% block page_title %}Répertoire Patients{% endblock %}
+
+{% block content %}
+<div class="patients-wrapper">
+    
+    <!-- Top Interactive Search & Filter Controls -->
+    <div class="directory-control animate-up">
+        <!-- Instant Search Box -->
+        <div class="search-wrapper">
+            <!-- Search Glass SVG -->
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="directorySearch" class="search-input" placeholder="Rechercher par nom, ID ou résultat...">
+        </div>
+
+        <!-- Filter Pill Group -->
+        <div class="filter-group">
+            <button id="filterAll" class="filter-btn active">Tous</button>
+            <button id="filterBenign" class="filter-btn">Cas Bénins</button>
+            <button id="filterSuspicious" class="filter-btn">Cas Suspects</button>
+            <button id="filterMalignant" class="filter-btn">Cas Malins</button>
+        </div>
+    </div>
+
+    <!-- Elegant Glassmorphic Data Table Grid -->
+    <div class="table-wrapper glass-panel animate-up" style="animation-delay: 0.1s;">
+        {% if patients %}
+            <table class="data-table" id="patientsTable">
+                <thead>
+                    <tr>
+                        <th>Identifiant Patient</th>
+                        <th>Âge</th>
+                        <th>Classification IA</th>
+                        <th>Degré de Confiance</th>
+                        <th>Cliché Lésionnel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in patients %}
+                        <!-- We store lowercase attributes in data-* for ultra-fast instant JS sorting -->
+                        {% set date_str = p.created_at | string %}
+                        <tr class="patient-row" 
+                            data-name="{{ p.name | lower }}" 
+                            data-result="{{ p.result | lower }}"
+                            data-id="{{ p.id }}"
+                            data-raw-name="{{ p.name }}"
+                            data-age="{{ p.age }}"
+                            data-probability="{{ (p.probability * 100) | round(2) }}"
+                            data-image="/{{ p.image_path if not p.image_path.startswith('/') else p.image_path[1:] }}"
+                            data-date="{{ date_str.split(' ')[0] }}">
+                            <td class="patient-name-cell">
+                                <div style="display:flex; flex-direction:column;">
+                                    <span>{{ p.name }}</span>
+                                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal; margin-top:2px;">Ref: SG-{{ p.id }}</span>
+                                </div>
+                            </td>
+                            <td>{{ p.age }} ans</td>
+                            <td>
+                                <span class="activity-badge {% if p.result == 'Malignant' %}badge-malignant{% elif p.result == 'Suspicious' %}badge-suspicious{% else %}badge-benign{% endif %}">
+                                    {{ 'Malin' if p.result == 'Malignant' else ('Suspect' if p.result == 'Suspicious' else 'Bénin') }}
+                                </span>
+                            </td>
+                            <td style="font-weight:600; color:var(--text-primary);">
+                                {{ (p.probability * 100) | round(2) }}%
+                            </td>
+                            <td>
+                                <!-- Thumbnail clickable to zoom -->
+                                <img class="table-image-thumb img-trigger" 
+                                     src="/{{ p.image_path if not p.image_path.startswith('/') else p.image_path[1:] }}" 
+                                     alt="Scan Target">
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <!-- Styled Empty State -->
+            <div style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:15px; opacity:0.6;">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <h3 style="font-size:1.1rem; color:var(--text-primary); margin-bottom:5px;">Répertoire de dossiers vide</h3>
+                <p style="font-size:0.85rem;">Aucune fiche patient n'est actuellement enregistrée. Lancez une analyse scanner.</p>
+                <a href="/predict" class="btn-primary" style="display:inline-flex; margin-top:20px; font-size:0.85rem; padding:10px 20px;">
+                    <span>Nouvelle Analyse</span>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- High Fidelity Image Lightbox Modal -->
+<div id="lightboxModal" class="lightbox-modal">
+    <button class="lightbox-close" id="lightboxClose">&times;</button>
+    <div class="lightbox-content">
+        <img id="lightboxImg" class="lightbox-img" src="" alt="High Resolution Lesion Scan">
+    </div>
+</div>
+
+<!-- High Fidelity Patient details Report Modal -->
+<div id="patientDetailsModal" class="lightbox-modal">
+    <button class="lightbox-close" id="detailsClose">&times;</button>
+    <div class="details-modal-card glass-panel animate-up">
+        <!-- Header Outcome Panel -->
+        <div class="result-header-block" style="padding-bottom: 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 25px;">
+            <div class="result-header-info">
+                <h2 style="font-size: 1.4rem;">Fiche Patient & Diagnostic Clinique</h2>
+                <p style="font-size: 0.8rem; margin-top: 3px;">Référence Clinique: <span id="detRef" style="font-weight: 600; color: var(--text-primary);">SG-X</span> • Module SkinGuard AI</p>
+            </div>
+            <div id="detBadge" class="result-badge">
+                CHARGEMENT...
+            </div>
+        </div>
+
+        <div class="result-body">
+            <!-- Left Side: Image and Meta -->
+            <div class="result-scan-container" style="flex: 1; min-width: 250px;">
+                <div class="result-img-wrapper" style="margin-bottom: 15px;">
+                    <img id="detImg" src="" alt="Lesion Scan Target" style="width: 100%; border-radius: 12px; height: 180px; object-fit: cover;">
+                </div>
+                <div class="result-patient-meta">
+                    <div class="meta-row" style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <span class="label" style="color: var(--text-muted); font-size: 0.85rem;">Patient:</span>
+                        <span class="val" id="detName" style="font-weight: 600; color: var(--text-primary); font-size: 0.85rem;">Sali Carson</span>
+                    </div>
+                    <div class="meta-row" style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <span class="label" style="color: var(--text-muted); font-size: 0.85rem;">Âge du Patient:</span>
+                        <span class="val" id="detAge" style="font-weight: 600; color: var(--text-primary); font-size: 0.85rem;">23 ans</span>
+                    </div>
+                    <div class="meta-row" style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <span class="label" style="color: var(--text-muted); font-size: 0.85rem;">Date d'Analyse:</span>
+                        <span class="val" id="detDate" style="font-weight: 600; color: var(--text-primary); font-size: 0.85rem;">2026-05-29</span>
+                    </div>
+                    <div class="meta-row" style="display: flex; justify-content: space-between; padding: 6px 0;">
+                        <span class="label" style="color: var(--text-muted); font-size: 0.85rem;">Moteur de Calcul:</span>
+                        <span class="val" style="color: var(--secondary); font-weight: 600; font-size: 0.85rem;">VGG-16 Deep Learning</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Gauge and Opinion -->
+            <div class="result-analysis-panel" style="flex: 1.3; min-width: 280px; display: flex; flex-direction: column; align-items: center;">
+                <!-- Gauge ring -->
+                <div class="confidence-gauge" style="margin-bottom: 20px;">
+                    <svg class="svg-ring" width="140" height="140" viewBox="0 0 160 160">
+                        <circle class="ring-circle-bg" cx="80" cy="80" r="70" />
+                        <circle id="detProgressCircle" class="ring-circle-progress" 
+                                cx="80" cy="80" r="70" 
+                                stroke-dasharray="439.82" 
+                                stroke-dashoffset="439.82" />
+                    </svg>
+                    <div class="confidence-text">
+                        <span class="confidence-val" id="detConfidence" style="font-size: 1.4rem;">0.0%</span>
+                        <span class="confidence-lbl" id="detConfidenceLbl">Confiance</span>
+                    </div>
+                </div>
+
+                <!-- Rec box -->
+                <div id="detRecommendationBox" class="recommendations-box" style="width: 100%; text-align: left; padding: 15px 20px;">
+                    <h4 id="detRecTitle" style="font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                        Avis Médical IA
+                    </h4>
+                    <p id="detRecText" style="font-size: 0.8rem; line-height: 1.4; margin-top: 6px; color: var(--text-secondary);"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById("directorySearch");
+        const rows = document.querySelectorAll(".patient-row");
+        
+        // Interactive Filter Buttons
+        const btnAll = document.getElementById("filterAll");
+        const btnBenign = document.getElementById("filterBenign");
+        const btnSuspicious = document.getElementById("filterSuspicious");
+        const btnMalignant = document.getElementById("filterMalignant");
+        
+        let currentFilter = "all"; // all, benign, suspicious, malignant
+        let searchQuery = "";
+ 
+        // Function that applies search and outcome pill filters reactively
+        function applyFilters() {
+            rows.forEach(row => {
+                const name = row.getAttribute("data-name");
+                const result = row.getAttribute("data-result");
+                
+                const matchesSearch = name.includes(searchQuery) || result.includes(searchQuery);
+                let matchesCategory = true;
+                
+                if (currentFilter === "benign") {
+                    matchesCategory = (result === "benign");
+                } else if (currentFilter === "suspicious") {
+                    matchesCategory = (result === "suspicious");
+                } else if (currentFilter === "malignant") {
+                    matchesCategory = (result === "malignant");
+                }
+                
+                if (matchesSearch && matchesCategory) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+ 
+        // Live text input typing handler
+        if (searchInput) {
+            searchInput.addEventListener("input", function() {
+                searchQuery = this.value.toLowerCase().trim();
+                applyFilters();
+            });
+        }
+ 
+        // Toggle visual active state and execute categories filtering
+        function setFilter(filterType, activeBtn) {
+            [btnAll, btnBenign, btnSuspicious, btnMalignant].forEach(btn => {
+                if (btn) btn.classList.remove("active");
+            });
+            if (activeBtn) activeBtn.classList.add("active");
+            currentFilter = filterType;
+            applyFilters();
+        }
+ 
+        if (btnAll) btnAll.addEventListener("click", () => setFilter("all", btnAll));
+        if (btnBenign) btnBenign.addEventListener("click", () => setFilter("benign", btnBenign));
+        if (btnSuspicious) btnSuspicious.addEventListener("click", () => setFilter("suspicious", btnSuspicious));
+        if (btnMalignant) btnMalignant.addEventListener("click", () => setFilter("malignant", btnMalignant));
+ 
+        // Lightbox Modal Functionality
+        const lightboxModal = document.getElementById("lightboxModal");
+        const lightboxImg = document.getElementById("lightboxImg");
+        const lightboxClose = document.getElementById("lightboxClose");
+        const triggers = document.querySelectorAll(".img-trigger");
+ 
+        triggers.forEach(trigger => {
+            trigger.addEventListener("click", function(e) {
+                e.stopPropagation(); // CRITICAL: Stop click from reaching patient-row click handler
+                lightboxImg.src = this.src;
+                lightboxModal.style.display = "flex";
+                setTimeout(() => {
+                    lightboxModal.classList.add("show");
+                }, 10);
+            });
+        });
+ 
+        function closeLightbox() {
+            lightboxModal.classList.remove("show");
+            setTimeout(() => {
+                lightboxModal.style.display = "none";
+                lightboxImg.src = "";
+            }, 300);
+        }
+ 
+        if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
+        if (lightboxModal) {
+            lightboxModal.addEventListener("click", function(e) {
+                if (e.target === lightboxModal) {
+                    closeLightbox();
+                }
+            });
+        }
+
+        // Patient Details Modal Functionality
+        const detailsModal = document.getElementById("patientDetailsModal");
+        const detailsClose = document.getElementById("detailsClose");
+        
+        const detRef = document.getElementById("detRef");
+        const detBadge = document.getElementById("detBadge");
+        const detImg = document.getElementById("detImg");
+        const detName = document.getElementById("detName");
+        const detAge = document.getElementById("detAge");
+        const detDate = document.getElementById("detDate");
+        const detProgressCircle = document.getElementById("detProgressCircle");
+        const detConfidence = document.getElementById("detConfidence");
+        const detConfidenceLbl = document.getElementById("detConfidenceLbl");
+        const detRecBox = document.getElementById("detRecommendationBox");
+        const detRecTitle = document.getElementById("detRecTitle");
+        const detRecText = document.getElementById("detRecText");
+
+        rows.forEach(row => {
+            row.addEventListener("click", function() {
+                const id = this.getAttribute("data-id");
+                const name = this.getAttribute("data-raw-name");
+                const age = this.getAttribute("data-age");
+                const result = this.getAttribute("data-result"); // benign, suspicious, malignant
+                const probability = parseFloat(this.getAttribute("data-probability"));
+                const image = this.getAttribute("data-image");
+                const date = this.getAttribute("data-date");
+
+                // Set textual details
+                detRef.textContent = "SG-" + id;
+                detName.textContent = name;
+                detAge.textContent = age + " ans";
+                detDate.textContent = date;
+                detImg.src = image;
+                detConfidence.textContent = probability.toFixed(2) + "%";
+
+                // Setup layout classes & content mapping
+                detBadge.className = "result-badge";
+                detProgressCircle.className = "ring-circle-progress";
+                detRecBox.className = "recommendations-box";
+
+                let recTitle = "";
+                let recText = "";
+                let badgeText = "";
+                let typeClass = "";
+
+                if (result === "malignant") {
+                    typeClass = "malignant";
+                    badgeText = "MÉLANOME SUSPECTÉ (MALIN)";
+                    recTitle = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span>Avis Oncologique Critique (Risque Élevé)</span>
+                    `;
+                    recText = "Notre algorithme a détecté des caractéristiques structurelles hautement atypiques concordantes avec des lésions cancéreuses (mélanome). Il est impérativement recommandé de planifier une biopsie ou une consultation d'urgence avec un dermatologue ou oncologue certifié pour confirmer ce résultat.";
+                    detConfidenceLbl.textContent = "Confiance";
+                } else if (result === "suspicious") {
+                    typeClass = "suspicious";
+                    badgeText = "RISQUE MODÉRÉ (SUSPECT)";
+                    recTitle = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>Avis Clinique de Prudence (Risque Modéré)</span>
+                    `;
+                    recText = "La lésion présente des caractéristiques d'atypie structurelles modérées. Bien que sous le seuil d'urgence absolue de 50%, ce score représente un risque non négligeable. Une consultation dermatologique de contrôle est vivement conseillée par précaution.";
+                    detConfidenceLbl.textContent = "Risque IA";
+                } else {
+                    typeClass = "benign";
+                    badgeText = "LÉSION BÉNIGNE";
+                    recTitle = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <polyline points="9 11 11 13 15 9"></polyline>
+                        </svg>
+                        <span>Analyse de Lésion Négative (Risque Faible)</span>
+                    `;
+                    recText = "L'analyse par IA indique des caractéristiques structurelles typiques d'une lésion bénigne (par ex. naevus typique, kératose séborrhéique). Aucun signe évident de malignité n'a été identifié. Pensez toutefois à surveiller l'évolution selon la règle ABCDE.";
+                    detConfidenceLbl.textContent = "Confiance";
+                }
+
+                // Add classes
+                detBadge.classList.add(typeClass);
+                detBadge.textContent = badgeText;
+                detProgressCircle.classList.add(typeClass);
+                detRecBox.classList.add(typeClass);
+                detRecTitle.innerHTML = recTitle;
+                detRecText.textContent = recText;
+
+                // Animate circular gauge ring
+                // stroke-dashoffset = 439.82 - (439.82 * probability / 100)
+                const offset = 439.82 - (439.82 * probability / 100);
+                detProgressCircle.style.strokeDashoffset = offset;
+
+                // Open modal
+                detailsModal.style.display = "flex";
+                setTimeout(() => {
+                    detailsModal.classList.add("show");
+                }, 10);
+            });
+        });
+
+        function closeDetails() {
+            detailsModal.classList.remove("show");
+            setTimeout(() => {
+                detailsModal.style.display = "none";
+                detImg.src = "";
+            }, 300);
+        }
+
+        if (detailsClose) detailsClose.addEventListener("click", closeDetails);
+        if (detailsModal) {
+            detailsModal.addEventListener("click", function(e) {
+                if (e.target === detailsModal) {
+                    closeDetails();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
